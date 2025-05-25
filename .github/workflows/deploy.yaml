@@ -25,13 +25,13 @@ jobs:
             # Install system dependencies
             sudo apt update && sudo apt install -y git curl unzip
 
-            # Install Node.js 18 if not installed
+            # Install Node.js 18 if not already installed
             if ! command -v node &> /dev/null; then
               curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
               sudo apt install -y nodejs
             fi
 
-            # Install Ollama if not installed
+            # Install Ollama if missing
             if ! command -v ollama &> /dev/null; then
               curl -fsSL https://ollama.com/install.sh | sh
             fi
@@ -39,40 +39,47 @@ jobs:
             # Configure Ollama to listen on all IPs
             mkdir -p ~/.ollama
             echo 'host = "0.0.0.0"' > ~/.ollama/config
+
+            # Restart Ollama service
             pkill ollama || true
             nohup ollama serve > ollama.log 2>&1 &
 
-            # Clean and clone project repo
-            rm -rf m-nextjs-ollama-llm-ui
-            git clone https://github.com/MaisaSh99/m-nextjs-ollama-llm-ui.git
-            cd m-nextjs-ollama-llm-ui
+            # Clone or update the project repository
+            if [ ! -d m-nextjs-ollama-llm-ui ]; then
+              git clone https://github.com/MaisaSh99/m-nextjs-ollama-llm-ui.git
+            fi
 
-            # Ensure data directory and pets.json exist
+            cd m-nextjs-ollama-llm-ui
+            git reset --hard
+            git clean -fd
+            git pull origin main
+
+            # Ensure pets.json file exists and has correct permissions
             mkdir -p data
             if [ ! -f data/pets.json ]; then
               echo '[]' > data/pets.json
             fi
             chmod 664 data/pets.json
 
-            # Set up environment variables
+            # Create .env file with proper variables
             echo "OLLAMA_URL=http://${{ secrets.EC2_HOST }}:11434" > .env
             echo "NODE_ENV=production" >> .env
-            echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
-            echo "S3_BUCKET=${{ secrets.S3_BUCKET }}" >> .env
             echo "PETS_JSON_PATH=./data/pets.json" >> .env
+            echo "S3_BUCKET=m-adoption-images" >> .env
+            echo "AWS_REGION=us-east-2" >> .env
 
-            # Install dependencies and build app
+            # Install dependencies and build the project
             npm ci
             npm run build
 
-            # Ensure the .service file is present
+            # Ensure systemd service file exists
             if [ -f nextjs-ollama-llm-ui.service ]; then
+              sed -i 's/npm run dev/npm run start/' nextjs-ollama-llm-ui.service || true
               sudo cp nextjs-ollama-llm-ui.service /etc/systemd/system/nextjs-ollama-llm-ui.service
               sudo systemctl daemon-reload
               sudo systemctl enable nextjs-ollama-llm-ui.service
               sudo systemctl restart nextjs-ollama-llm-ui.service
             else
-              echo "❌ Error: nextjs-ollama-llm-ui.service not found!"
-              exit 1
+              echo "❌ Service file 'nextjs-ollama-llm-ui.service' not found. Skipping systemd setup."
             fi
           EOF
