@@ -42,7 +42,12 @@ jobs:
             if [ ! -d m-nextjs-ollama-llm-ui ]; then
               git clone https://github.com/MaisaSh99/m-nextjs-ollama-llm-ui.git
             else
-              cd m-nextjs-ollama-llm-ui && git pull && cd ..
+             cd m-nextjs-ollama-llm-ui
+             git reset --hard HEAD
+             git clean -fd
+             git pull
+             cd ..
+          
             fi
             cd m-nextjs-ollama-llm-ui
             # Create pets.json file if it doesn't exist
