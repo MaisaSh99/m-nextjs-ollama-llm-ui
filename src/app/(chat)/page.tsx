@@ -42,7 +42,7 @@ export default function Home() {
               🐾 Welcome to PetMatch!
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Let's get to know you better so we can help find your perfect furry friend.
+              Let&apos;s get to know you better so we can help find your perfect furry friend.
               Enter your name to get started.
             </DialogDescription>
             <UsernameForm setOpen={setOpen} />
