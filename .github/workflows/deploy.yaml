@@ -47,39 +47,36 @@ jobs:
             # Clone or update the project repository
             if [ ! -d m-nextjs-ollama-llm-ui ]; then
               git clone https://github.com/MaisaSh99/m-nextjs-ollama-llm-ui.git
+            else
+              cd m-nextjs-ollama-llm-ui && git pull && cd ..
             fi
 
             cd m-nextjs-ollama-llm-ui
-            git reset --hard
-            git clean -fd
-            git pull origin main
 
-            # Ensure pets.json file exists and has correct permissions
+            # Create pets.json file if it doesn't exist
             mkdir -p data
             if [ ! -f data/pets.json ]; then
               echo '[]' > data/pets.json
             fi
             chmod 664 data/pets.json
 
-            # Create .env file with proper variables
+            # Create or overwrite .env file with S3 + region
             echo "OLLAMA_URL=http://${{ secrets.EC2_HOST }}:11434" > .env
             echo "NODE_ENV=production" >> .env
             echo "PETS_JSON_PATH=./data/pets.json" >> .env
             echo "S3_BUCKET=m-adoption-images" >> .env
             echo "AWS_REGION=us-east-2" >> .env
 
-            # Install dependencies and build the project
+            # Install dependencies and build
             npm ci
             npm run build
 
-            # Ensure systemd service file exists
-            if [ -f nextjs-ollama-llm-ui.service ]; then
-              sed -i 's/npm run dev/npm run start/' nextjs-ollama-llm-ui.service || true
-              sudo cp nextjs-ollama-llm-ui.service /etc/systemd/system/nextjs-ollama-llm-ui.service
-              sudo systemctl daemon-reload
-              sudo systemctl enable nextjs-ollama-llm-ui.service
-              sudo systemctl restart nextjs-ollama-llm-ui.service
-            else
-              echo "❌ Service file 'nextjs-ollama-llm-ui.service' not found. Skipping systemd setup."
-            fi
+            # Ensure systemd service uses `npm run start`
+            sed -i 's/npm run dev/npm run start/' nextjs-ollama-llm-ui.service || true
+
+            # Install or reload the systemd service
+            sudo cp nextjs-ollama-llm-ui.service /etc/systemd/system/nextjs-ollama-llm-ui.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable nextjs-ollama-llm-ui.service
+            sudo systemctl restart nextjs-ollama-llm-ui.service
           EOF
